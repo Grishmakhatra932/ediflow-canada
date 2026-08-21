@@ -4,3 +4,8 @@ __pycache__/
 .pytest_cache/
 *.pyc
 ediflow.db
+
+.vscode/
+.idea/
+*.log
+.DS_Store
