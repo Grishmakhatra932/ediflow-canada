@@ -14,4 +14,6 @@ router = APIRouter(
 def create_purchase_order(
     purchase_order: ERPPurchaseOrder,
 ) -> dict[str, object]:
-    return create_erp_purchase_order(purchase_order)
+    return create_erp_purchase_order(
+        purchase_order
+    )
