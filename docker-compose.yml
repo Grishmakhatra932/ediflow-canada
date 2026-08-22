@@ -37,6 +37,7 @@ services:
     environment:
       DATABASE_URL: ${DOCKER_DATABASE_URL}
       API_KEY: ${API_KEY}
+      ERP_FAILURE_MODE: ${ERP_FAILURE_MODE}
 
     ports:
       - "8000:8000"
