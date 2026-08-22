@@ -26,17 +26,15 @@ class EDITransaction(Base):
     )
 
     control_number: Mapped[str | None] = mapped_column(
-    String(100),
-    nullable=True,
-    unique=True,
-
+        String(100),
+        nullable=True,
+        unique=True,
     )
 
     purchase_order_number: Mapped[str | None] = mapped_column(
         String(100),
         nullable=True,
         unique=True,
-
     )
 
     erp_order_number: Mapped[str | None] = mapped_column(
