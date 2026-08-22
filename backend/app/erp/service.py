@@ -17,12 +17,15 @@ def create_erp_purchase_order(
         )
 
     if po_number == "PO-RETRY-001":
-        current_attempt = _failure_attempts.get(po_number, 0) + 1
+        current_attempt = (
+            _failure_attempts.get(po_number, 0) + 1
+        )
         _failure_attempts[po_number] = current_attempt
 
         if current_attempt < 3:
             raise RuntimeError(
-                f"Simulated ERP service failure on attempt {current_attempt}"
+                "Simulated ERP service failure "
+                f"on attempt {current_attempt}"
             )
 
     erp_order_number = f"ERP-{po_number}"
