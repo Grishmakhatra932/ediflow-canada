@@ -37,6 +37,30 @@ def split_segments(
     return segments
 
 
+def get_control_number(
+    segments: list[list[str]],
+) -> str:
+    for segment in segments:
+        if segment[0] == "ISA":
+            if len(segment) <= 13:
+                raise EDIValidationError(
+                    "ISA segment is incomplete"
+                )
+
+            control_number = segment[13].strip()
+
+            if not control_number:
+                raise EDIValidationError(
+                    "EDI control number is missing"
+                )
+
+            return control_number
+
+    raise EDIValidationError(
+        "ISA segment not found"
+    )
+
+
 def get_purchase_order_number(
     segments: list[list[str]],
 ) -> str:
@@ -85,7 +109,6 @@ def get_order_date(
                     raw_date,
                     "%Y%m%d",
                 )
-
             except ValueError as error:
                 raise EDIValidationError(
                     "BEG order date is invalid"
@@ -97,32 +120,6 @@ def get_order_date(
 
     raise EDIValidationError(
         "BEG segment not found"
-    )
-
-
-def get_control_number(
-    segments: list[list[str]],
-) -> str:
-    for segment in segments:
-        if segment[0] == "ISA":
-            if len(segment) <= 13:
-                raise EDIValidationError(
-                    "ISA segment is incomplete"
-                )
-
-            control_number = (
-                segment[13].strip()
-            )
-
-            if not control_number:
-                raise EDIValidationError(
-                    "EDI control number is missing"
-                )
-
-            return control_number
-
-    raise EDIValidationError(
-        "ISA segment not found"
     )
 
 
@@ -177,12 +174,8 @@ def get_supplier(
                     "Supplier N1 segment is incomplete"
                 )
 
-            supplier_name = (
-                segment[2].strip()
-            )
-            supplier_id = (
-                segment[4].strip()
-            )
+            supplier_name = segment[2].strip()
+            supplier_id = segment[4].strip()
 
             if not supplier_name:
                 raise EDIValidationError(
@@ -210,49 +203,50 @@ def get_items(
     items: list[dict[str, object]] = []
 
     for segment in segments:
-        if segment[0] == "PO1":
-            if len(segment) <= 7:
-                raise EDIValidationError(
-                    "PO1 segment is incomplete"
-                )
+        if segment[0] != "PO1":
+            continue
 
-            try:
-                line_number = int(segment[1])
-                quantity = float(segment[2])
-                unit_price = float(segment[4])
-
-            except (ValueError, TypeError) as error:
-                raise EDIValidationError(
-                    "PO1 contains invalid numeric values"
-                ) from error
-
-            unit = segment[3].strip()
-            sku = segment[7].strip()
-
-            if not unit:
-                raise EDIValidationError(
-                    "Item unit is missing"
-                )
-
-            if not sku:
-                raise EDIValidationError(
-                    "Item SKU is missing"
-                )
-
-            validate_item(
-                quantity,
-                unit_price,
+        if len(segment) <= 7:
+            raise EDIValidationError(
+                "PO1 segment is incomplete"
             )
 
-            items.append(
-                {
-                    "line_number": line_number,
-                    "quantity": quantity,
-                    "unit": unit,
-                    "unit_price": unit_price,
-                    "sku": sku,
-                }
+        try:
+            line_number = int(segment[1])
+            quantity = float(segment[2])
+            unit_price = float(segment[4])
+        except (ValueError, TypeError) as error:
+            raise EDIValidationError(
+                "PO1 contains invalid numeric values"
+            ) from error
+
+        unit = segment[3].strip()
+        sku = segment[7].strip()
+
+        if not unit:
+            raise EDIValidationError(
+                "Item unit is missing"
             )
+
+        if not sku:
+            raise EDIValidationError(
+                "Item SKU is missing"
+            )
+
+        validate_item(
+            quantity,
+            unit_price,
+        )
+
+        items.append(
+            {
+                "line_number": line_number,
+                "quantity": quantity,
+                "unit": unit,
+                "unit_price": unit_price,
+                "sku": sku,
+            }
+        )
 
     if not items:
         raise EDIValidationError(
