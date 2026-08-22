@@ -5,9 +5,9 @@ services:
     container_name: ediflow-postgres
 
     environment:
-      POSTGRES_DB: ediflow
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
 
     ports:
       - "5433:5432"
@@ -16,7 +16,11 @@ services:
       - postgres_data:/var/lib/postgresql/data
 
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d ediflow"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"
+        ]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -31,7 +35,7 @@ services:
         condition: service_healthy
 
     environment:
-      DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/ediflow
+      DATABASE_URL: ${DOCKER_DATABASE_URL}
       API_KEY: ${API_KEY}
 
     ports:
