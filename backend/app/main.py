@@ -1,8 +1,17 @@
 import logging
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import (
+    Depends,
+    FastAPI,
+    File,
+    HTTPException,
+    UploadFile,
+)
 from fastapi.responses import PlainTextResponse
-from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+from prometheus_client import (
+    CONTENT_TYPE_LATEST,
+    generate_latest,
+)
 from sqlalchemy.exc import IntegrityError
 
 from backend.app.core.logging_config import setup_logging
@@ -12,8 +21,13 @@ from backend.app.core.metrics import (
     edi_failed_total,
     edi_rejected_total,
 )
+from backend.app.core.security import verify_api_key
 from backend.app.db import models
-from backend.app.db.database import Base, SessionLocal, engine
+from backend.app.db.database import (
+    Base,
+    SessionLocal,
+    engine,
+)
 from backend.app.db.service import (
     create_edi_transaction,
     get_edi_transactions,
@@ -28,8 +42,6 @@ from backend.app.edi.x12_parser import (
 from backend.app.erp.router import router as erp_router
 from backend.app.erp.schemas import ERPPurchaseOrder
 from backend.app.erp.service import create_erp_purchase_order
-from fastapi import Depends
-from backend.app.core.security import verify_api_key
 
 
 Base.metadata.create_all(bind=engine)
@@ -90,9 +102,15 @@ def list_edi_transactions() -> list[dict[str, object]]:
                 "purchase_order_number": (
                     transaction.purchase_order_number
                 ),
-                "erp_order_number": transaction.erp_order_number,
-                "error_message": transaction.error_message,
-                "created_at": transaction.created_at.isoformat(),
+                "erp_order_number": (
+                    transaction.erp_order_number
+                ),
+                "error_message": (
+                    transaction.error_message
+                ),
+                "created_at": (
+                    transaction.created_at.isoformat()
+                ),
             }
             for transaction in transactions
         ]
@@ -103,7 +121,9 @@ def list_edi_transactions() -> list[dict[str, object]]:
 
 @app.get("/api/edi/sample")
 def parse_sample_purchase_order() -> dict[str, object]:
-    file_path = "edi_samples/x12/missing_po_number_850.txt"
+    file_path = (
+        "edi_samples/x12/missing_po_number_850.txt"
+    )
 
     try:
         return parse_purchase_order(file_path)
@@ -126,7 +146,10 @@ async def upload_edi_file(
     db = SessionLocal()
 
     try:
-        if not file.filename or not file.filename.endswith(".txt"):
+        if (
+            not file.filename
+            or not file.filename.endswith(".txt")
+        ):
             raise HTTPException(
                 status_code=400,
                 detail="Only .txt EDI files are allowed",
@@ -140,10 +163,15 @@ async def upload_edi_file(
         except UnicodeDecodeError as error:
             raise HTTPException(
                 status_code=400,
-                detail="The uploaded file must use UTF-8 encoding",
+                detail=(
+                    "The uploaded file must use "
+                    "UTF-8 encoding"
+                ),
             ) from error
 
-        purchase_order = parse_purchase_order_text(raw_edi)
+        purchase_order = parse_purchase_order_text(
+            raw_edi
+        )
 
         existing_control_transaction = (
             get_transaction_by_control_number(
@@ -156,7 +184,10 @@ async def upload_edi_file(
 
         if existing_control_transaction:
             logger.warning(
-                "Duplicate EDI control number | filename=%s | control_number=%s",
+                (
+                    "Duplicate EDI control number | "
+                    "filename=%s | control_number=%s"
+                ),
                 file.filename,
                 purchase_order["control_number"],
             )
@@ -165,32 +196,47 @@ async def upload_edi_file(
                 status_code=409,
                 detail={
                     "status": "duplicate",
-                    "error": "EDI control number already processed",
+                    "error": (
+                        "EDI control number "
+                        "already processed"
+                    ),
                     "existing_transaction_id": (
                         existing_control_transaction.id
                     ),
                 },
             )
 
-        existing_po_transaction = get_transaction_by_po_number(
-            db=db,
-            purchase_order_number=str(
-                purchase_order["purchase_order_number"]
-            ),
+        existing_po_transaction = (
+            get_transaction_by_po_number(
+                db=db,
+                purchase_order_number=str(
+                    purchase_order[
+                        "purchase_order_number"
+                    ]
+                ),
+            )
         )
 
         if existing_po_transaction:
             logger.warning(
-                "Duplicate purchase order | filename=%s | po_number=%s",
+                (
+                    "Duplicate purchase order | "
+                    "filename=%s | po_number=%s"
+                ),
                 file.filename,
-                purchase_order["purchase_order_number"],
+                purchase_order[
+                    "purchase_order_number"
+                ],
             )
 
             raise HTTPException(
                 status_code=409,
                 detail={
                     "status": "duplicate",
-                    "error": "Purchase order already processed",
+                    "error": (
+                        "Purchase order "
+                        "already processed"
+                    ),
                     "existing_transaction_id": (
                         existing_po_transaction.id
                     ),
@@ -199,7 +245,9 @@ async def upload_edi_file(
 
         erp_purchase_order = ERPPurchaseOrder(
             purchase_order_number=str(
-                purchase_order["purchase_order_number"]
+                purchase_order[
+                    "purchase_order_number"
+                ]
             ),
             order_date=str(
                 purchase_order["order_date"]
@@ -215,15 +263,25 @@ async def upload_edi_file(
         max_attempts = 3
         erp_response = None
 
-        for attempt in range(1, max_attempts + 1):
+        for attempt in range(
+            1,
+            max_attempts + 1,
+        ):
             try:
-                erp_response = create_erp_purchase_order(
-                    erp_purchase_order
+                erp_response = (
+                    create_erp_purchase_order(
+                        erp_purchase_order
+                    )
                 )
 
                 logger.info(
-                    "ERP request succeeded | po_number=%s | attempt=%s",
-                    purchase_order["purchase_order_number"],
+                    (
+                        "ERP request succeeded | "
+                        "po_number=%s | attempt=%s"
+                    ),
+                    purchase_order[
+                        "purchase_order_number"
+                    ],
                     attempt,
                 )
 
@@ -231,8 +289,14 @@ async def upload_edi_file(
 
             except RuntimeError as error:
                 logger.warning(
-                    "ERP request failed | po_number=%s | attempt=%s | error=%s",
-                    purchase_order["purchase_order_number"],
+                    (
+                        "ERP request failed | "
+                        "po_number=%s | "
+                        "attempt=%s | error=%s"
+                    ),
+                    purchase_order[
+                        "purchase_order_number"
+                    ],
                     attempt,
                     str(error),
                 )
@@ -253,7 +317,9 @@ async def upload_edi_file(
                 purchase_order["control_number"]
             ),
             purchase_order_number=str(
-                purchase_order["purchase_order_number"]
+                purchase_order[
+                    "purchase_order_number"
+                ]
             ),
             erp_order_number=str(
                 erp_response["erp_order_number"]
@@ -263,10 +329,18 @@ async def upload_edi_file(
         edi_completed_total.inc()
 
         logger.info(
-            "EDI transaction completed | filename=%s | control_number=%s | po_number=%s | erp_order=%s",
+            (
+                "EDI transaction completed | "
+                "filename=%s | "
+                "control_number=%s | "
+                "po_number=%s | "
+                "erp_order=%s"
+            ),
             file.filename,
             purchase_order["control_number"],
-            purchase_order["purchase_order_number"],
+            purchase_order[
+                "purchase_order_number"
+            ],
             erp_response["erp_order_number"],
         )
 
@@ -282,7 +356,10 @@ async def upload_edi_file(
         edi_failed_total.inc()
 
         logger.error(
-            "ERP service failure | filename=%s | error=%s",
+            (
+                "ERP service failure | "
+                "filename=%s | error=%s"
+            ),
             file.filename,
             str(error),
         )
@@ -295,7 +372,9 @@ async def upload_edi_file(
                 purchase_order["control_number"]
             ),
             purchase_order_number=str(
-                purchase_order["purchase_order_number"]
+                purchase_order[
+                    "purchase_order_number"
+                ]
             ),
             error_message=str(error),
         )
@@ -312,7 +391,10 @@ async def upload_edi_file(
         db.rollback()
 
         logger.error(
-            "Database duplicate blocked | filename=%s",
+            (
+                "Database duplicate blocked | "
+                "filename=%s"
+            ),
             file.filename,
         )
 
@@ -320,7 +402,10 @@ async def upload_edi_file(
             status_code=409,
             detail={
                 "status": "duplicate",
-                "error": "Duplicate transaction blocked by database",
+                "error": (
+                    "Duplicate transaction "
+                    "blocked by database"
+                ),
             },
         ) from error
 
@@ -335,7 +420,10 @@ async def upload_edi_file(
         )
 
         logger.warning(
-            "EDI validation rejected | filename=%s | error=%s",
+            (
+                "EDI validation rejected | "
+                "filename=%s | error=%s"
+            ),
             file.filename,
             str(error),
         )
